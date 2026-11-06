@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Жизнь у границы</title>
+<style>
+:root{--bg:#1b2530;--panel:#243241;--ink:#e9eef2;--mute:#9fb0bf;--line:#3c4e60;--acc:#e3a93b;--bad:#d9674f;--ok:#7fb08a;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#e6ecf0;--panel:#f7f9fa;--ink:#1d2a36;--mute:#566878;--line:#b3c1cc;--acc:#a86f0a;--bad:#b4442d;--ok:#3f7a52;color-scheme:light}}
+:root[data-theme="dark"]{--bg:#1b2530;--panel:#243241;--ink:#e9eef2;--mute:#9fb0bf;--line:#3c4e60;--acc:#e3a93b;--bad:#d9674f;--ok:#7fb08a}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;line-height:1.55}
+main{max-width:560px;margin:0 auto;padding:18px 16px 40px}
+h1{font-size:2rem;line-height:1.1;margin:8px 0 10px;letter-spacing:.01em}
+p{margin:0 0 14px}
+.mute{color:var(--mute)}
+.fence{display:flex;align-items:flex-end;gap:0;height:34px;margin:6px 0 14px;border-bottom:2px solid var(--line);position:relative}
+.fence i{flex:1;height:100%;position:relative}
+.fence i::before{content:"";position:absolute;left:50%;bottom:0;width:3px;height:70%;background:var(--line);transform:translateX(-50%)}
+.fence i.on::before{background:var(--acc);height:100%}
+.fence i.now::after{content:"";position:absolute;left:50%;top:-2px;width:7px;height:7px;background:var(--acc);border-radius:50%;transform:translateX(-50%)}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:18px}
+.st{font-size:.85rem}
+.st b{display:flex;justify-content:space-between;font-weight:normal;color:var(--mute);margin-bottom:3px}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--ok);transition:width .4s}
+.bar span.low{background:var(--bad)}
+.card{background:var(--panel);border-left:4px solid var(--acc);padding:16px 16px 6px;border-radius:2px;margin-bottom:16px}
+.card h2{font-size:1.15rem;margin:0 0 8px}
+button{display:block;width:100%;text-align:left;font:inherit;color:var(--ink);background:transparent;border:1px solid var(--line);padding:13px 14px;margin:0 0 10px;border-radius:2px;cursor:pointer;min-height:48px}
+button:hover{border-color:var(--acc)}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button small{display:block;color:var(--mute);margin-top:3px}
+button.main{background:var(--acc);color:#1b2530;border-color:var(--acc);text-align:center;font-weight:bold}
+.res{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.fx{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;font-size:.9rem}
+.fx span{padding:2px 8px;border:1px solid var(--line);border-radius:2px}
+.fx .p{color:var(--ok)}.fx .n{color:var(--bad)}
+@media (prefers-reduced-motion:reduce){.bar span{transition:none}}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+var DAYS=21;
+var NAMES={m:"Деньги",f:"Припасы",w:"Тепло",t:"Доверие"};
+var EV=[
+{h:"Ночной стук",x:"Поздно вечером кто-то стучит в дверь. На пороге замёрзшая семья с детьми: они сбились с пути у самой границы.",c:[
+ {t:"Впустить и накормить",fx:{f:-12,w:-4,t:12},r:"Дети уснули у печки. Утром отец молча пожал вам руку."},
+ {t:"Показать дорогу до заставы",fx:{w:-3,t:2},r:"Вы проводили их до огней. Спокойно, но тяжело на душе."},
+ {t:"Не открывать",fx:{t:-14,w:3},r:"Стук стих. Утром соседи спрашивали, почему у вас не горел свет."}]},
+{h:"Обоз на рынок",x:"В субботу на пограничный рынок едут торговцы. Можно пойти с ними и продать запасы мёда и шерсти.",c:[
+ {t:"Продать всё",fx:{m:20,f:-10},r:"Выручка хорошая, зато полки опустели."},
+ {t:"Продать половину",fx:{m:10,f:-4},r:"Разумный компромисс. Вернулись затемно."},
+ {t:"Остаться дома",fx:{w:4},r:"Вы наколол(а) дров и починили забор."}]},
+{h:"Проверка документов",x:"Патруль заходит в дом: плановая проверка. Один из бумажных листов у вас давно просрочен.",c:[
+ {t:"Признаться и заплатить штраф",fx:{m:-14,t:6},r:"Офицер кивнул: честность ценится."},
+ {t:"Сказать, что потеряли",fx:{m:-4,t:-8},r:"Вам поверили наполовину. Придётся прийти завтра."},
+ {t:"Предложить чай и поговорить",fx:{f:-4,t:8},r:"Разговор о погоде смягчил проверку."}]},
+{h:"Снежная буря",x:"К вечеру небо затянуло. Ветер воет вдоль колючей проволоки, дрова на исходе.",c:[
+ {t:"Топить печь всю ночь",fx:{w:12,f:-6,m:-6},r:"В доме тепло, но дрова почти кончились."},
+ {t:"Топить экономно, укутаться",fx:{w:-8},r:"Ночь была холодной, зато запас цел."},
+ {t:"Позвать соседей греться вместе",fx:{w:4,f:-8,t:14},r:"Одна печь на всех. Той ночью вы стали ближе."}]},
+{h:"Контрабандист",x:"Незнакомец предлагает хорошие деньги, если вы «забудете» запереть сарай на одну ночь.",c:[
+ {t:"Согласиться",fx:{m:30,t:-16,w:-6},r:"Деньги есть, но по деревне пошёл шёпот. Спали плохо."},
+ {t:"Отказать",fx:{t:4},r:"Он ушёл, не прощаясь."},
+ {t:"Рассказать пограничникам",fx:{t:-8,m:10},r:"Вам заплатили премию, но не все в деревне этому рады."}]},
+{h:"Больной сосед",x:"Старик напротив слёг с жаром. До больницы — два часа по разбитой дороге.",c:[
+ {t:"Отвезти на своей телеге",fx:{m:-8,w:-4,t:16},r:"Врач сказал, что вы успели вовремя."},
+ {t:"Принести лекарства и суп",fx:{f:-8,t:10},r:"Старик пошёл на поправку."},
+ {t:"Позвать кого-нибудь другого",fx:{t:-8},r:"Помощь пришла поздно. Вам было стыдно."}]},
+{h:"Сломанный забор",x:"Ветер повалил участок вашего забора. За ним уже бродят чужие козы.",c:[
+ {t:"Починить сразу",fx:{m:-8,w:-3},r:"К закату забор стоял крепче прежнего."},
+ {t:"Подпереть, чем попало",fx:{w:-2},r:"Пока держится."},
+ {t:"Взять досок у соседа",fx:{t:-6,m:4},r:"Сосед промолчал, но вы это запомнили."}]},
+{h:"Свадьба на другой стороне",x:"Вас приглашают на свадьбу родственников по ту сторону. Пропуск дают только на день.",c:[
+ {t:"Поехать с подарком",fx:{m:-12,t:12,f:6},r:"Танцы, еда, слёзы радости. Вернулись глубокой ночью."},
+ {t:"Отправить подарок с попутчиком",fx:{m:-4,t:3},r:"Родные поймут. Наверное."},
+ {t:"Отказаться",fx:{m:6,t:-6},r:"Сэкономили, но теперь неловко."}]},
+{h:"Беженец с рацией",x:"Путник просит продать ему старую рацию: он хочет связаться с родными.",c:[
+ {t:"Подарить",fx:{t:10,m:-6},r:"Через час он услышал голос матери."},
+ {t:"Продать по честной цене",fx:{m:10,t:2},r:"Обоим выгодно."},
+ {t:"Запросить втридорога",fx:{m:24,t:-12},r:"Он заплатил, но взгляд был красноречивым."}]},
+{h:"Урожайный день",x:"Огород дал неожиданно много. Можно заготовить впрок или поделиться.",c:[
+ {t:"Заготовить на зиму",fx:{f:18,w:-4},r:"Погреб полон, спина болит."},
+ {t:"Поделиться с деревней",fx:{f:6,t:14},r:"Вам отвечали пирогами и добрыми словами."},
+ {t:"Продать на рынке",fx:{m:16,f:4},r:"Кошелёк потяжелел."}]},
+{h:"Тревога на заставе",x:"Над лесом взлетели ракеты. Никто не говорит, что случилось, деревня гудит от слухов.",c:[
+ {t:"Собрать всех в доме и ждать",fx:{f:-8,t:10,w:-4},r:"К утру тревога оказалась учебной."},
+ {t:"Запереться и никого не пускать",fx:{t:-8,w:4},r:"Вы пережили ночь спокойно, но одни."},
+ {t:"Пойти узнать у знакомого офицера",fx:{t:4,w:-6},r:"Он тихо сказал: ничего страшного."}]},
+{h:"Мальчишка-проводник",x:"Соседский мальчишка хочет водить туристов к старому пограничному столбу и просит вашего разрешения.",c:[
+ {t:"Разрешить и получать долю",fx:{m:14,t:-3},r:"Туристов немного, но деньги есть."},
+ {t:"Разрешить без доли",fx:{t:10},r:"Мальчик светился от гордости."},
+ {t:"Запретить: опасно",fx:{t:-4,w:2},r:"Он надулся и ушёл."}]},
+{h:"Протекла крыша",x:"Ночью ледяная капля упала вам на лоб. Крыша течёт прямо над кроватью.",c:[
+ {t:"Купить листы железа",fx:{m:-18,w:12},r:"Дорого, но сухо."},
+ {t:"Залатать самому",fx:{w:6,f:-4},r:"Вышло криво, но держится."},
+ {t:"Подставить таз",fx:{w:-10},r:"Холодная и мокрая ночь."}]},
+{h:"Письмо издалека",x:"Пришло письмо от сестры из другой страны. Она зовёт вас уехать насовсем и обещает помочь.",c:[
+ {t:"Ответить, что остаётесь",fx:{t:8},r:"Это ваш дом. Вы это чувствуете."},
+ {t:"Попросить денег взаймы",fx:{m:20,t:-4},r:"Деньги придут, но и долг вместе с ними."},
+ {t:"Спрятать письмо и не отвечать",fx:{},r:"Оно лежит под подушкой. Вы думаете о нём."}]},
+{h:"Лисы в курятнике",x:"Утром в курятнике перья и следы. Лисы вернутся и этой ночью.",c:[
+ {t:"Дежурить с фонарём",fx:{w:-6,f:4},r:"Вы никого не увидели, но яйца целы."},
+ {t:"Поставить капкан",fx:{m:-4,f:6},r:"Лиса попалась. Совесть тоже."},
+ {t:"Махнуть рукой",fx:{f:-12},r:"Утром снова перья."}]},
+{h:"Ярмарка у реки",x:"На берегу собирается ярмарка. Люди с двух сторон меняют товары, поют, торгуются.",c:[
+ {t:"Поставить свой лоток",fx:{m:16,f:-6,t:4},r:"Бойкая торговля и добрые знакомства."},
+ {t:"Прийти просто погулять",fx:{t:8,m:-4},r:"Вы вернулись с мешком гостинцев."},
+ {t:"Остаться дома работать",fx:{w:6},r:"Хозяйство в порядке."}]},
+{h:"Пропавшая собака",x:"Ваша собака ушла за линию границы. Её видели у лесной вышки.",c:[
+ {t:"Пойти за ней сами",fx:{w:-10,t:-4},r:"Пограничник строго отчитал, но собаку вернули."},
+ {t:"Попросить знакомого пограничника",fx:{t:4,f:-4},r:"К вечеру собака лежала у порога."},
+ {t:"Подождать: сама вернётся",fx:{w:-3},r:"Она вернулась на третий день. Голодная."}]},
+{h:"Холодное утро",x:"Мороз прихватил колодец. Воды нет, а день только начался.",c:[
+ {t:"Разогреть колодец углями",fx:{w:-8,f:-4},r:"Вода пошла к полудню."},
+ {t:"Топить снег",fx:{w:-6},r:"Долго, но надёжно."},
+ {t:"Попросить воды у соседа",fx:{t:6,m:-4},r:"Сосед не отказал. Вы ему должны."}]}
+];
+var S,order,seen=0;
+var app=document.getElementById("app");
+function best(){try{return +localStorage.getItem("zug_best")||0}catch(e){return 0}}
+function saveBest(d){try{if(d>best())localStorage.setItem("zug_best",d)}catch(e){}}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+function start(){S={day:1,m:50,f:50,w:50,t:50};order=shuffle(EV);showEvent()}
+function bars(){var h='<div class="stats">';["m","f","w","t"].forEach(function(k){var v=Math.max(0,Math.min(100,S[k]));h+='<div class="st"><b><span>'+NAMES[k]+'</span><span>'+v+'</span></b><div class="bar"><span class="'+(v<25?"low":"")+'" style="width:'+v+'%"></span></div></div>'});return h+"</div>"}
+function fence(){var h='<div class="fence" role="img" aria-label="День '+S.day+' из '+DAYS+'">';for(var i=1;i<=DAYS;i++)h+='<i class="'+(i<=S.day?"on":"")+(i===S.day?" now":"")+'"></i>';return h+"</div>"}
+function head(){return '<p class="mute">День '+S.day+' из '+DAYS+'</p>'+fence()+bars()}
+function title(){app.innerHTML='<h1>Жизнь у границы</h1><p>Вы живёте в маленьком посёлке прямо у линии границы. Три недели зимы: каждый день приносит человека, беду или выбор. Следите за деньгами, припасами, теплом и доверием соседей. Если что-то одно упадёт до нуля, дальше будет очень трудно.</p><p class="mute">Лучший результат: '+best()+' дн.</p><button class="main" id="go">Начать</button>';document.getElementById("go").onclick=start}
+function showEvent(){var e=order[(S.day-1)%order.length];var h=head()+'<div class="card"><h2>'+esc(e.h)+'</h2><p>'+esc(e.x)+'</p></div>';e.c.forEach(function(c,i){h+='<button data-i="'+i+'">'+esc(c.t)+'</button>'});app.innerHTML=h;
+Array.prototype.forEach.call(app.querySelectorAll("button"),function(b){b.onclick=function(){choose(e,+b.dataset.i)}});window.scrollTo(0,0)}
+function choose(e,i){var c=e.c[i],fx=c.fx,h="";for(var k in fx)S[k]+=fx[k];
+Object.keys(NAMES).forEach(function(k){S[k]=Math.min(100,S[k])});
+S.m-=3;S.f-=4;S.w-=3;
+var chips='<div class="fx">';for(var k in fx){if(fx[k])chips+='<span class="'+(fx[k]>0?"p":"n")+'">'+NAMES[k]+" "+(fx[k]>0?"+":"")+fx[k]+"</span>"}chips+='<span class="n">Ночь: расход</span></div>';
+var dead=null;["m","f","w","t"].forEach(function(k){if(S[k]<=0&&!dead)dead=k});
+h=head()+'<div class="card"><h2>'+esc(e.h)+'</h2><div class="res"><p>'+esc(c.r)+'</p>'+chips+'</div></div>';
+var last=S.day>=DAYS;
+h+='<button class="main" id="nx">'+(dead||last?"Дальше":"Следующий день")+'</button>';app.innerHTML=h;
+document.getElementById("nx").onclick=function(){if(dead)return end(false,dead);if(last)return end(true);S.day++;showEvent()}}
+var LOSS={m:"Деньги кончились. Вы продали последнее и вынуждены уехать в город.",f:"Припасы закончились. Зима оказалась сильнее вас.",w:"В доме стало слишком холодно. Вы ушли к родным, не дожив до весны.",t:"Соседи отвернулись. Без их плеча жизнь у границы невыносима."};
+function end(win,k){var d=win?DAYS:S.day;saveBest(d);app.innerHTML='<h1>'+(win?"Вы дожили до весны":"Конец истории")+'</h1><p>'+(win?"Снег сходит, река шумит. Посёлок пережил зиму, и вы стали его частью.":LOSS[k])+'</p><p class="mute">Вы продержались: '+d+' из '+DAYS+' дн.<br>Лучший результат: '+best()+' дн.</p><button class="main" id="ag">Сыграть ещё раз</button>';document.getElementById("ag").onclick=start;window.scrollTo(0,0)}
+title();
+</script>
+</body>
+</html>
